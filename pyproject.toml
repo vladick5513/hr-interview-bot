@@ -1,0 +1,28 @@
+[project]
+name = "hr-interview-bot"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
+env = [
+  "D:BOT_TOKEN=123456:test",
+  "D:HR_IDS=[1]",
+  "D:OPENAI_API_KEY=test",
+  "D:OPENAI_MODEL=test",
+  "D:HH_USER_AGENT=hr-interview-bot-test/0.1",
+  "D:DB_HOST=localhost",
+  "D:DB_PORT=5432",
+  "D:DB_USER=test",
+  "D:DB_PASS=test",
+  "D:DB_NAME=test",
+  "D:LOG_LEVEL=WARNING",
+]
