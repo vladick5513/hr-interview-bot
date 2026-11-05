@@ -6,6 +6,7 @@ from app.hh.client import NEW_NEGOTIATION_ACTION, HHClient
 from app.hh.dao import HHTokenDAO
 from app.hh.exceptions import HHNotConnected
 from app.hh.schemas import HHResume, HHTokenResponse, HHVacancy
+from app.logger import logger
 
 
 class HHService:
@@ -55,4 +56,5 @@ class HHService:
             await self.save_tokens(hr_tg_id, token)
             # Старый refresh уже сгорел: новую пару фиксируем, даже если дальше что-то упадёт
             await self.session.commit()
+            logger.info("Токены hh.ru обновлены: %s", hr_tg_id)
         return row.access_token

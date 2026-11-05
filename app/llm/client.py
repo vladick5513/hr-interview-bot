@@ -5,6 +5,7 @@ from app.enums import QuestionMode
 from app.llm import prompts
 from app.llm.exceptions import LLMTransportError, LLMUnexpectedResponse
 from app.llm.schemas import AnswerEvaluation, ResumeAnalysis, VacancyProfile
+from app.logger import logger
 from app.vacancy.models import Vacancy, VacancyCriterion
 
 
@@ -64,6 +65,7 @@ class LLMClient:
     async def _parse[SchemaT: BaseModel](
         self, system: str, user: str, schema: type[SchemaT]
     ) -> SchemaT:
+        logger.info("Запрос к LLM: %s", schema.__name__)
         try:
             completion = await self.openai.chat.completions.parse(
                 model=self.model,
@@ -77,6 +79,7 @@ class LLMClient:
             raise LLMUnexpectedResponse(str(exc)) from exc
         except OpenAIError as exc:
             raise LLMTransportError(str(exc)) from exc
+        logger.info("Ответ от LLM получен: %s", schema.__name__)
         message = completion.choices[0].message
         if message.parsed is None:
             raise LLMUnexpectedResponse(message.refusal or "empty response")

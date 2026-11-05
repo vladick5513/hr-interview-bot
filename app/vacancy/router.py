@@ -104,7 +104,7 @@ async def vacancy_link(
         await message.answer("Сначала подключите аккаунт работодателя hh.ru: /connect_hh")
         return
     except HHError as exc:
-        logger.warning("hh.ru request failed for vacancy %s: %s", vacancy_id, exc)
+        logger.warning("Ошибка запроса к hh.ru по вакансии %s: %s", vacancy_id, exc)
         await message.answer(f"Не получилось забрать вакансию из hh.ru: {escape(str(exc))}")
         return
     await _ask_mode(message, state, vacancy.to_text(), vacancy_id)
@@ -211,7 +211,7 @@ async def _draft(
             data["vacancy_text"], pool, mode, previous, remarks
         )
     except LLMError:
-        logger.exception("Vacancy profile generation failed")
+        logger.exception("Ошибка генерации профиля вакансии")
         await message.answer("LLM не ответила. Отправьте сообщение ещё раз.")
         return
     await state.set_state(NewVacancy.review)

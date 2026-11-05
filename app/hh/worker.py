@@ -33,7 +33,7 @@ async def screening_worker(
         try:
             processed = await _screen_batch(bot, llm, hh, session_factory)
         except Exception:
-            logger.exception("Screening batch failed")
+            logger.exception("Ошибка при обработке откликов")
             processed = 0
         if processed == BATCH_SIZE:
             continue
@@ -58,7 +58,7 @@ async def _screen_batch(
             vacancy = await ScreeningService(session, llm, hh).screen(response)
             await session.commit()
         if vacancy is None:
-            logger.warning("Response %s not screened: %s", response_id, response.error)
+            logger.warning("Отклик %s не оценён: %s", response_id, response.error)
             continue
         try:
             await bot.send_message(
@@ -67,5 +67,5 @@ async def _screen_batch(
                 reply_markup=response_keyboard(response.id),
             )
         except TelegramAPIError:
-            logger.exception("Failed to notify about response %s", response_id)
+            logger.exception("Не удалось отправить уведомление об отклике %s", response_id)
     return len(ids)
