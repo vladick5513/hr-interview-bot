@@ -23,14 +23,14 @@ async def on_menu_button(
     message: Message, session: AsyncSession, state: FSMContext, hh_auth: HHAuthFlow | None
 ) -> None:
     await state.clear()
-    match message.text:
-        case "Создать вакансию":
-            await new_vacancy(message, state)
-        case "Создать интервью":
-            await new_interview(message, session, state)
-        case "Отслеживать hh":
-            await pick_vacancy(message, CommandObject(command="track"), session, state)
-        case "Отклики":
-            await pick_vacancy(message, CommandObject(command="responses"), session, state)
-        case "Подключить hh":
-            await connect_hh(message, hh_auth)
+    text = message.text
+    if text == VACANCY:
+        await new_vacancy(message, state)
+    elif text == INTERVIEW:
+        await new_interview(message, session, state)
+    elif text == TRACK:
+        await pick_vacancy(message, CommandObject(command="track"), session, state)
+    elif text == RESPONSES:
+        await pick_vacancy(message, CommandObject(command="responses"), session, state)
+    else:
+        await connect_hh(message, hh_auth)
