@@ -7,6 +7,7 @@ from app.interview.dao import InterviewDAO, InterviewQuestionDAO
 from app.interview.models import Interview, InterviewQuestion
 from app.llm.client import LLMClient
 from app.llm.schemas import AnswerEvaluation, ResumeAnalysis
+from app.logger import logger
 from app.services.scoring import criterion_scores, make_verdict, total_score
 from app.vacancy.models import Vacancy
 
@@ -73,6 +74,7 @@ class InterviewService:
         for position, row in enumerate(rows):
             row.update(interview_id=interview.id, position=position)
         questions = await self.questions.add_many(rows)
+        logger.info("Интервью создано: %s, вопросов: %d", interview.id, len(questions))
         return interview, questions
 
     async def start(self, interview: Interview, candidate_tg_id: int) -> InterviewQuestion:
@@ -80,6 +82,7 @@ class InterviewService:
             interview.candidate_tg_id = candidate_tg_id
             interview.status = InterviewStatus.IN_PROGRESS
             interview.started_at = datetime.now(UTC)
+            logger.info("Интервью начато: %s", interview.id)
         question = next_question(interview)
         if question is None:
             raise RuntimeError(f"Interview {interview.id} has no questions")
@@ -109,8 +112,10 @@ class InterviewService:
         question.answer = answer
         question.follow_up_answer = follow_up_answer
         self._apply_evaluation(question, evaluation)
+        logger.info("Ответ оценён: %s, вопрос: %d", interview.id, question.position + 1)
         if evaluation.is_shallow and evaluation.follow_up and not is_follow_up:
             question.follow_up = evaluation.follow_up
+            logger.info("Задано уточнение: %s, вопрос: %d", interview.id, question.position + 1)
 
         upcoming = next_question(interview)
         if upcoming is None:
@@ -135,3 +140,4 @@ class InterviewService:
         interview.verdict = make_verdict(scores, total)
         interview.status = InterviewStatus.FINISHED
         interview.finished_at = datetime.now(UTC)
+        logger.info("Интервью завершено: %s, итог: %s", interview.id, total)

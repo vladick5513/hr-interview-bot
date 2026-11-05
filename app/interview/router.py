@@ -130,7 +130,7 @@ async def resume_link(
         await message.answer("Сначала подключите аккаунт работодателя hh.ru: /connect_hh")
         return
     except HHError as exc:
-        logger.warning("hh.ru request failed for negotiation %s: %s", negotiation_id, exc)
+        logger.warning("Ошибка запроса к hh.ru по отклику %s: %s", negotiation_id, exc)
         await message.answer(
             f"Не получилось забрать резюме из hh.ru: {escape(str(exc))}\n"
             "Если доступ истёк или отозван, переподключите hh.ru: /connect_hh"
@@ -160,7 +160,7 @@ async def _create_interview(
             vacancy, message.from_user.id, resume, hh_negotiation_id
         )
     except LLMError:
-        logger.exception("Resume analysis failed")
+        logger.exception("Ошибка анализа резюме")
         await message.answer("LLM не ответила. Пришлите резюме ещё раз.")
         return
     await state.clear()
@@ -230,7 +230,7 @@ async def _process_answer(
     try:
         question = await InterviewService(session, llm).answer(interview, message.text)
     except LLMError:
-        logger.exception("Answer processing failed for interview %s", interview.id)
+        logger.exception("Ошибка обработки ответа, интервью %s", interview.id)
         await message.answer("Не получилось обработать ответ. Отправьте его ещё раз.")
         return
 
@@ -263,5 +263,6 @@ async def _send_report(bot: Bot, interview: Interview) -> None:
     try:
         await bot.send_message(interview.hr_tg_id, render_summary(interview))
         await bot.send_document(interview.hr_tg_id, report)
+        logger.info("Отчёт отправлен: %s", interview.id)
     except TelegramAPIError:
-        logger.exception("Failed to send report for interview %s", interview.id)
+        logger.exception("Не удалось отправить отчёт по интервью %s", interview.id)

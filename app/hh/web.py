@@ -29,7 +29,7 @@ async def _notify(bot: Bot, chat_id: int, text: str) -> None:
     try:
         await bot.send_message(chat_id, text)
     except TelegramAPIError:
-        logger.exception("Failed to notify %s about hh.ru connection", chat_id)
+        logger.exception("Не удалось уведомить %s о подключении hh.ru", chat_id)
 
 
 def create_web_app(
@@ -54,18 +54,20 @@ def create_web_app(
         try:
             token = await hh.exchange_code(code, pending.code_verifier)
         except HHError:
-            logger.exception("hh.ru code exchange failed for %s", pending.hr_tg_id)
+            logger.exception("Не удалось получить токены hh.ru: %s", pending.hr_tg_id)
             await _notify(bot, pending.hr_tg_id, "Не получилось подключить hh.ru: /connect_hh")
             return _page("Не получилось подключить hh.ru. Попробуйте ещё раз.", status=502)
 
         async with session_factory() as session:
             await HHService(session, hh).save_tokens(pending.hr_tg_id, token)
             await session.commit()
+        logger.info("hh.ru подключён: %s", pending.hr_tg_id)
         await _notify(bot, pending.hr_tg_id, "hh.ru подключён. Можно присылать отклики в /new.")
         return _page("hh.ru подключён, можно вернуться в Telegram.")
 
     async def webhook(request: web.Request) -> web.Response:
         if not hmac.compare_digest(request.query.get("secret", ""), webhook_secret):
+            logger.warning("Вебхук hh.ru отклонён: неверный секрет")
             return web.Response(status=403)
         try:
             event = HHWebhookEvent.model_validate(await request.json())

@@ -60,7 +60,7 @@ async def main() -> None:
             await runner.setup()
             stack.push_async_callback(runner.cleanup)
             await web.TCPSite(runner, "0.0.0.0", WEB_PORT).start()
-            logger.info("hh.ru OAuth callback and webhook listen on port %s", WEB_PORT)
+            logger.info("OAuth callback и вебхук hh.ru слушают порт %s", WEB_PORT)
 
             worker = asyncio.create_task(
                 screening_worker(
@@ -73,9 +73,9 @@ async def main() -> None:
             )
             stack.push_async_callback(_cancel, worker)
         else:
-            logger.warning("HH_CLIENT_ID is not set, hh.ru integration is disabled")
+            logger.warning("HH_CLIENT_ID не задан, интеграция с hh.ru выключена")
 
-        logger.info("Bot started")
+        logger.info("Бот запущен")
         await dp.start_polling(bot, llm=llm, hh=hh, hh_auth=hh_auth)
 
 

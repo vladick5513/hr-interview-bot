@@ -11,6 +11,7 @@ from app.interview.models import Interview, InterviewQuestion
 from app.llm.client import LLMClient
 from app.llm.exceptions import LLMError
 from app.llm.schemas import ResumeAnalysis
+from app.logger import logger
 from app.services.hh import HHService
 from app.services.interview import PERSONAL_QUESTIONS, InterviewService
 from app.services.scoring import resume_score
@@ -56,6 +57,7 @@ async def register_response(
     if vacancy is None or await responses.exists(topic_id):
         return False
     await responses.add(topic_id=topic_id, vacancy_id=vacancy.id, status=ResponseStatus.NEW)
+    logger.info("Отклик поставлен в очередь: %s", topic_id)
     return True
 
 
@@ -94,6 +96,7 @@ class ScreeningService:
         response.status = ResponseStatus.SCREENED
         response.screened_at = datetime.now(UTC)
         response.error = None
+        logger.info("Отклик оценён: %s, балл резюме: %s", response.id, response.resume_score)
         return vacancy
 
     async def invite(
@@ -106,6 +109,7 @@ class ScreeningService:
         )
         response.status = ResponseStatus.INVITED
         response.interview_id = interview.id
+        logger.info("Кандидат приглашён: отклик %s, интервью %s", response.id, interview.id)
         return interview, questions, vacancy
 
     @staticmethod

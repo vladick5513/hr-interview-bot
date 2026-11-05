@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.enums import QuestionMode, QuestionSource
 from app.llm.schemas import VacancyProfile
+from app.logger import logger
 from app.vacancy.dao import VacancyCriterionDAO, VacancyDAO, VacancyQuestionDAO
 from app.vacancy.models import Vacancy
 
@@ -100,4 +101,5 @@ class VacancyService:
                 for position, q in enumerate(questions)
             ]
         )
+        logger.info("Вакансия создана: %s", vacancy.id)
         return vacancy
