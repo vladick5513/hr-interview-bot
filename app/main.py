@@ -17,6 +17,7 @@ from app.hh.worker import screening_worker
 from app.interview.router import candidate_router, hr_router
 from app.llm.client import LLMClient
 from app.logger import logger
+from app.menu import menu_router
 from app.settings import settings
 from app.vacancy.router import router as vacancy_router
 
@@ -28,7 +29,7 @@ async def main() -> None:
     dp = Dispatcher()
     dp.update.middleware(DbSessionMiddleware())
     # Кандидатский роутер первым: deep-link /start должен сработать и у рекрутера
-    dp.include_routers(candidate_router, hr_router, vacancy_router, hh_router)
+    dp.include_routers(menu_router, candidate_router, hr_router, vacancy_router, hh_router)
 
     llm = LLMClient(settings.OPENAI_API_KEY, settings.OPENAI_MODEL, settings.OPENAI_BASE_URL)
 

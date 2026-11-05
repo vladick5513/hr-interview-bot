@@ -18,6 +18,7 @@ from app.hh.client import HHClient, parse_negotiation_id
 from app.hh.exceptions import HHError, HHNotConnected
 from app.interview.dao import InterviewDAO
 from app.interview.models import Interview, InterviewQuestion
+from app.keyboards import MENU_KEYBOARD
 from app.llm.client import LLMClient
 from app.llm.exceptions import LLMError
 from app.logger import logger
@@ -57,7 +58,8 @@ async def hr_help(message: Message) -> None:
         "/responses — рейтинг откликов по вакансии.\n\n"
         "Бот проанализирует резюме, подготовит вопросы и даст ссылку для кандидата. "
         "Когда кандидат закончит, сюда придёт отчёт. По отслеживаемым вакансиям бот сам "
-        "разбирает новые отклики и присылает их с оценкой резюме."
+        "разбирает новые отклики и присылает их с оценкой резюме.",
+        reply_markup=MENU_KEYBOARD,
     )
 
 
