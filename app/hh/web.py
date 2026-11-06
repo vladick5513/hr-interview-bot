@@ -28,8 +28,8 @@ def _page(text: str, status: int = 200) -> web.Response:
 async def _notify(bot: Bot, chat_id: int, text: str) -> None:
     try:
         await bot.send_message(chat_id, text)
-    except TelegramAPIError:
-        logger.exception("Не удалось уведомить %s о подключении hh.ru", chat_id)
+    except TelegramAPIError as exc:
+        logger.error("Не удалось уведомить %s о подключении hh.ru: %s", chat_id, type(exc).__name__)
 
 
 def create_web_app(
@@ -53,8 +53,10 @@ def create_web_app(
 
         try:
             token = await hh.exchange_code(code, pending.code_verifier)
-        except HHError:
-            logger.exception("Не удалось получить токены hh.ru: %s", pending.hr_tg_id)
+        except HHError as exc:
+            logger.error(
+                "Не удалось получить токены hh.ru: %s, %s", pending.hr_tg_id, type(exc).__name__
+            )
             await _notify(bot, pending.hr_tg_id, "Не получилось подключить hh.ru: /connect_hh")
             return _page("Не получилось подключить hh.ru. Попробуйте ещё раз.", status=502)
 

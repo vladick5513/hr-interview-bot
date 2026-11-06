@@ -124,7 +124,7 @@ class HHClient:
                 headers={"Authorization": f"Bearer {access_token}"},
             )
         except httpx.HTTPError as exc:
-            raise HHTransportError(str(exc)) from exc
+            raise HHTransportError(f"Ошибка запроса к hh.ru: {type(exc).__name__}") from exc
         if response.status_code not in (200, 201, 204):
             raise HHAPIError(response.status_code, _error_types(response))
 
@@ -145,13 +145,13 @@ class HHClient:
         try:
             response = await self.http.request(method, url, **kwargs)
         except httpx.HTTPError as exc:
-            raise HHTransportError(str(exc)) from exc
+            raise HHTransportError(f"Ошибка запроса к hh.ru: {type(exc).__name__}") from exc
         if response.status_code != 200:
             raise HHAPIError(response.status_code, _error_types(response))
         try:
             return schema.model_validate_json(response.content)
         except ValidationError as exc:
-            raise HHUnexpectedResponse(str(exc)) from exc
+            raise HHUnexpectedResponse(f"Некорректный ответ hh.ru: {type(exc).__name__}") from exc
 
 
 def _error_types(response: httpx.Response) -> list[str]:
