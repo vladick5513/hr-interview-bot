@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import ErrorEvent
 from aiohttp import web
 
 from app.database import DbSessionMiddleware, session_factory
@@ -24,12 +25,28 @@ from app.vacancy.router import router as vacancy_router
 WEB_PORT = 8080
 
 
-async def main() -> None:
-    bot = Bot(settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+async def log_unhandled_error(event: ErrorEvent) -> bool:
+    # Текст исключения и traceback могут содержать данные кандидата или параметры SQL
+    logger.error(
+        "Необработанная ошибка в обновлении %s: %s",
+        event.update.update_id,
+        type(event.exception).__name__,
+    )
+    return True
+
+
+def build_dispatcher() -> Dispatcher:
     dp = Dispatcher()
     dp.update.middleware(DbSessionMiddleware())
+    dp.errors.register(log_unhandled_error)
     # Кандидатский роутер первым: deep-link /start должен сработать и у рекрутера
     dp.include_routers(menu_router, candidate_router, hr_router, vacancy_router, hh_router)
+    return dp
+
+
+async def main() -> None:
+    bot = Bot(settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = build_dispatcher()
 
     llm = LLMClient(settings.OPENAI_API_KEY, settings.OPENAI_MODEL, settings.OPENAI_BASE_URL)
 

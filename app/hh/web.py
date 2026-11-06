@@ -1,5 +1,6 @@
 import asyncio
 import hmac
+from collections.abc import Awaitable, Callable
 from html import escape
 
 from aiogram import Bot
@@ -28,8 +29,22 @@ def _page(text: str, status: int = 200) -> web.Response:
 async def _notify(bot: Bot, chat_id: int, text: str) -> None:
     try:
         await bot.send_message(chat_id, text)
-    except TelegramAPIError:
-        logger.exception("Не удалось уведомить %s о подключении hh.ru", chat_id)
+    except TelegramAPIError as exc:
+        logger.error("Не удалось уведомить %s о подключении hh.ru: %s", chat_id, type(exc).__name__)
+
+
+@web.middleware
+async def log_unhandled_error(
+    request: web.Request, handler: Callable[[web.Request], Awaitable[web.StreamResponse]]
+) -> web.StreamResponse:
+    # Иначе aiohttp пишет в лог текст исключения и traceback
+    try:
+        return await handler(request)
+    except web.HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Необработанная ошибка веб-запроса: %s", type(exc).__name__)
+        return web.Response(status=500)
 
 
 def create_web_app(
@@ -53,8 +68,10 @@ def create_web_app(
 
         try:
             token = await hh.exchange_code(code, pending.code_verifier)
-        except HHError:
-            logger.exception("Не удалось получить токены hh.ru: %s", pending.hr_tg_id)
+        except HHError as exc:
+            logger.error(
+                "Не удалось получить токены hh.ru: %s, %s", pending.hr_tg_id, type(exc).__name__
+            )
             await _notify(bot, pending.hr_tg_id, "Не получилось подключить hh.ru: /connect_hh")
             return _page("Не получилось подключить hh.ru. Попробуйте ещё раз.", status=502)
 
@@ -87,7 +104,7 @@ def create_web_app(
             new_responses.set()
         return web.Response(status=200)
 
-    app = web.Application()
+    app = web.Application(middlewares=[log_unhandled_error])
     app.router.add_get(callback_path, callback)
     app.router.add_post(WEBHOOK_PATH, webhook)
     return app

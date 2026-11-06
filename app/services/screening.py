@@ -83,9 +83,9 @@ class ScreeningService:
         except (HHError, LLMError) as exc:
             if _is_retryable(exc) and response.attempts + 1 < MAX_ATTEMPTS:
                 response.attempts += 1
-                response.error = str(exc)
+                response.error = type(exc).__name__
             else:
-                self._fail(response, str(exc))
+                self._fail(response, type(exc).__name__)
             return None
 
         matches = {m.criterion_id: m.score for m in analysis.criteria_matches}

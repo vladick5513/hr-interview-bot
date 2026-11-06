@@ -76,9 +76,9 @@ class LLMClient:
                 response_format=schema,
             )
         except ValidationError as exc:
-            raise LLMUnexpectedResponse(str(exc)) from exc
+            raise LLMUnexpectedResponse(f"Некорректный ответ LLM: {type(exc).__name__}") from exc
         except OpenAIError as exc:
-            raise LLMTransportError(str(exc)) from exc
+            raise LLMTransportError(f"Ошибка запроса к LLM: {type(exc).__name__}") from exc
         logger.info("Ответ от LLM получен: %s", schema.__name__)
         message = completion.choices[0].message
         if message.parsed is None:

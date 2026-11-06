@@ -32,8 +32,8 @@ async def screening_worker(
         new_responses.clear()
         try:
             processed = await _screen_batch(bot, llm, hh, session_factory)
-        except Exception:
-            logger.exception("Ошибка при обработке откликов")
+        except Exception as exc:
+            logger.error("Ошибка при обработке откликов: %s", type(exc).__name__)
             processed = 0
         if processed == BATCH_SIZE:
             continue
@@ -66,6 +66,10 @@ async def _screen_batch(
                 render_screened(response, vacancy),
                 reply_markup=response_keyboard(response.id),
             )
-        except TelegramAPIError:
-            logger.exception("Не удалось отправить уведомление об отклике %s", response_id)
+        except TelegramAPIError as exc:
+            logger.error(
+                "Не удалось отправить уведомление об отклике %s: %s",
+                response_id,
+                type(exc).__name__,
+            )
     return len(ids)

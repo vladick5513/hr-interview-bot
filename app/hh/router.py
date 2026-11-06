@@ -144,8 +144,10 @@ async def start_tracking(
         )
         return False
     except HHError as exc:
-        logger.warning("Не удалось подписаться на вебхук hh.ru: %s, %s", hr_tg_id, exc)
-        await message.answer(f"Не получилось подписаться на отклики: {escape(str(exc))}")
+        logger.warning(
+            "Не удалось подписаться на вебхук hh.ru: %s, %s", hr_tg_id, type(exc).__name__
+        )
+        await message.answer("Не получилось подписаться на отклики.")
         return False
     await message.answer(
         f"Отслеживаю отклики на «{escape(vacancy.title)}». Новые отклики придут сюда "

@@ -132,9 +132,11 @@ async def resume_link(
         await message.answer("Сначала подключите аккаунт работодателя hh.ru: /connect_hh")
         return
     except HHError as exc:
-        logger.warning("Ошибка запроса к hh.ru по отклику %s: %s", negotiation_id, exc)
+        logger.warning(
+            "Ошибка запроса к hh.ru по отклику %s: %s", negotiation_id, type(exc).__name__
+        )
         await message.answer(
-            f"Не получилось забрать резюме из hh.ru: {escape(str(exc))}\n"
+            "Не получилось забрать резюме из hh.ru.\n"
             "Если доступ истёк или отозван, переподключите hh.ru: /connect_hh"
         )
         return
@@ -161,8 +163,8 @@ async def _create_interview(
         interview, questions = await InterviewService(session, llm).create(
             vacancy, message.from_user.id, resume, hh_negotiation_id
         )
-    except LLMError:
-        logger.exception("Ошибка анализа резюме")
+    except LLMError as exc:
+        logger.error("Ошибка анализа резюме: %s", type(exc).__name__)
         await message.answer("LLM не ответила. Пришлите резюме ещё раз.")
         return
     await state.clear()
@@ -231,8 +233,8 @@ async def _process_answer(
     await bot.send_chat_action(message.chat.id, "typing")
     try:
         question = await InterviewService(session, llm).answer(interview, message.text)
-    except LLMError:
-        logger.exception("Ошибка обработки ответа, интервью %s", interview.id)
+    except LLMError as exc:
+        logger.error("Ошибка обработки ответа, интервью %s: %s", interview.id, type(exc).__name__)
         await message.answer("Не получилось обработать ответ. Отправьте его ещё раз.")
         return
 
@@ -266,5 +268,7 @@ async def _send_report(bot: Bot, interview: Interview) -> None:
         await bot.send_message(interview.hr_tg_id, render_summary(interview))
         await bot.send_document(interview.hr_tg_id, report)
         logger.info("Отчёт отправлен: %s", interview.id)
-    except TelegramAPIError:
-        logger.exception("Не удалось отправить отчёт по интервью %s", interview.id)
+    except TelegramAPIError as exc:
+        logger.error(
+            "Не удалось отправить отчёт по интервью %s: %s", interview.id, type(exc).__name__
+        )

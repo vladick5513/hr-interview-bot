@@ -35,6 +35,7 @@ from app.vacancy.models import Vacancy, VacancyCriterion
 
 OWNER = 7
 SECRET = webhook_secret("secret")
+MARKER = "SECRET_RESUME_TEXT"
 
 
 class FakeHH(HHClient):
@@ -72,7 +73,7 @@ class FakeLLM(LLMClient):
     ) -> ResumeAnalysis:
         self.calls += 1
         if self.fail:
-            raise LLMTransportError("timeout")
+            raise LLMTransportError(MARKER)
         return ResumeAnalysis(
             candidate_name="Иван Петров",
             summary="ML-инженер",
@@ -149,17 +150,19 @@ async def test_temporary_failure_is_retried_then_failed(session, tracked):
         assert await service.screen(response) is None
         assert response.status is ResponseStatus.NEW
         assert response.attempts == attempt
+        assert response.error == "LLMTransportError"
     assert await service.screen(response) is None
     assert response.status is ResponseStatus.FAILED
-    assert response.error == "timeout"
+    assert response.error == "LLMTransportError"
 
 
 async def test_permanent_hh_error_fails_immediately(session, tracked):
     await register_response(session, "t1", "555")
     (response,) = await _queued(session)
-    hh = FakeHH(resume_error=HHAPIError(404, ["not_found"]))
+    hh = FakeHH(resume_error=HHAPIError(404, [MARKER]))
     assert await ScreeningService(session, FakeLLM(), hh).screen(response) is None
     assert response.status is ResponseStatus.FAILED
+    assert response.error == "HHAPIError"
 
 
 async def test_track_vacancy_subscribes_once_and_rejects_double_link(session, tracked):
