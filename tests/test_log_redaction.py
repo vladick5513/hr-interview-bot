@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 import pytest
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Router
 from aiogram.types import Chat, Message, Update, User
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
@@ -13,13 +13,17 @@ from sqlalchemy.exc import IntegrityError
 from app.hh.client import HHClient
 from app.hh.exceptions import HHUnexpectedResponse
 from app.hh.oauth import HHAuthFlow
+from app.hh.router import router as hh_router
 from app.hh.web import create_web_app
 from app.hh.worker import screening_worker
+from app.interview.router import candidate_router, hr_router
 from app.llm.client import LLMClient
 from app.llm.exceptions import LLMTransportError, LLMUnexpectedResponse
 from app.llm.schemas import ResumeAnalysis
 from app.logger import logger
-from app.main import log_unhandled_error
+from app.main import build_dispatcher
+from app.menu import menu_router
+from app.vacancy.router import router as vacancy_router
 
 MARKER = "SECRET_RESUME_TEXT"
 
@@ -108,12 +112,17 @@ def _broken() -> IntegrityError:
 
 async def test_dispatcher_logs_only_error_type(caplog):
     _capture(caplog)
-    dp = Dispatcher()
-    dp.errors.register(log_unhandled_error)
+    # Роутеры приложения глобальные и уже подключены к диспетчеру test_menu
+    for router in (menu_router, candidate_router, hr_router, vacancy_router, hh_router):
+        router._parent_router = None
+    dp = build_dispatcher()
+    broken = Router()
 
-    @dp.message()
+    @broken.edited_message()
     async def handler(message: Message) -> None:
         raise _broken()
+
+    dp.include_router(broken)
 
     message = Message(
         message_id=1,
@@ -122,7 +131,7 @@ async def test_dispatcher_logs_only_error_type(caplog):
         from_user=User(id=1, is_bot=False, first_name="a"),
         text="hi",
     )
-    await dp.feed_update(Bot("123:abc"), Update(update_id=42, message=message))
+    await dp.feed_update(Bot("123:abc"), Update(update_id=42, edited_message=message))
     logger.removeHandler(caplog.handler)
 
     assert "IntegrityError" in caplog.text
