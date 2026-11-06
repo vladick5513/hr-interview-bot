@@ -14,6 +14,7 @@ from app.settings import settings
 engine = create_async_engine(
     settings.DATABASE_URL_asyncpg,
     echo=False,
+    hide_parameters=True,
     pool_size=5,
     max_overflow=10,
     pool_pre_ping=True,

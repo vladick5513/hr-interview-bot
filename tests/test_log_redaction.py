@@ -2,19 +2,24 @@ import asyncio
 import logging
 
 import pytest
+from aiogram import Bot, Dispatcher
+from aiogram.types import Chat, Message, Update, User
 from aiohttp import web
-from aiohttp.test_utils import TestServer
+from aiohttp.test_utils import TestClient, TestServer
 from openai import OpenAIError
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.hh.client import HHClient
 from app.hh.exceptions import HHUnexpectedResponse
+from app.hh.oauth import HHAuthFlow
+from app.hh.web import create_web_app
 from app.hh.worker import screening_worker
 from app.llm.client import LLMClient
 from app.llm.exceptions import LLMTransportError, LLMUnexpectedResponse
 from app.llm.schemas import ResumeAnalysis
 from app.logger import logger
+from app.main import log_unhandled_error
 
 MARKER = "SECRET_RESUME_TEXT"
 
@@ -87,6 +92,71 @@ async def test_worker_log_has_no_sql_parameters(caplog):
     task.cancel()
     logger.removeHandler(caplog.handler)
 
+    assert "IntegrityError" in caplog.text
+    assert MARKER not in caplog.text
+    assert all(r.exc_info is None for r in caplog.records)
+
+
+def _capture(caplog):
+    logger.addHandler(caplog.handler)
+    caplog.set_level(logging.DEBUG, logger=logger.name)
+
+
+def _broken() -> IntegrityError:
+    return IntegrityError("INSERT INTO t VALUES (?)", (MARKER,), Exception(MARKER))
+
+
+async def test_dispatcher_logs_only_error_type(caplog):
+    _capture(caplog)
+    dp = Dispatcher()
+    dp.errors.register(log_unhandled_error)
+
+    @dp.message()
+    async def handler(message: Message) -> None:
+        raise _broken()
+
+    message = Message(
+        message_id=1,
+        date="2024-01-01T00:00:00Z",
+        chat=Chat(id=1, type="private"),
+        from_user=User(id=1, is_bot=False, first_name="a"),
+        text="hi",
+    )
+    await dp.feed_update(Bot("123:abc"), Update(update_id=42, message=message))
+    logger.removeHandler(caplog.handler)
+
+    assert "IntegrityError" in caplog.text
+    assert "42" in caplog.text
+    assert MARKER not in caplog.text
+    assert all(r.exc_info is None for r in caplog.records)
+
+
+async def test_web_logs_only_error_type(caplog):
+    _capture(caplog)
+
+    def broken_factory():
+        raise _broken()
+
+    app = create_web_app(
+        bot=None,
+        hh=None,
+        auth_flow=HHAuthFlow("cid", "https://bot.example/cb"),
+        session_factory=broken_factory,
+        callback_path="/cb",
+        webhook_secret="s",
+        new_responses=asyncio.Event(),
+    )
+    event = {
+        "id": "e",
+        "subscription_id": "s1",
+        "action_type": "NEW_NEGOTIATION_VACANCY",
+        "payload": {"topic_id": "t", "vacancy_id": "1"},
+    }
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post("/hh/webhook?secret=s", json=event)
+    logger.removeHandler(caplog.handler)
+
+    assert response.status == 500
     assert "IntegrityError" in caplog.text
     assert MARKER not in caplog.text
     assert all(r.exc_info is None for r in caplog.records)

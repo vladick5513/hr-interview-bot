@@ -1,5 +1,6 @@
 import asyncio
 import hmac
+from collections.abc import Awaitable, Callable
 from html import escape
 
 from aiogram import Bot
@@ -30,6 +31,20 @@ async def _notify(bot: Bot, chat_id: int, text: str) -> None:
         await bot.send_message(chat_id, text)
     except TelegramAPIError as exc:
         logger.error("Не удалось уведомить %s о подключении hh.ru: %s", chat_id, type(exc).__name__)
+
+
+@web.middleware
+async def log_unhandled_error(
+    request: web.Request, handler: Callable[[web.Request], Awaitable[web.StreamResponse]]
+) -> web.StreamResponse:
+    # Иначе aiohttp пишет в лог текст исключения и traceback
+    try:
+        return await handler(request)
+    except web.HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Необработанная ошибка веб-запроса: %s", type(exc).__name__)
+        return web.Response(status=500)
 
 
 def create_web_app(
@@ -89,7 +104,7 @@ def create_web_app(
             new_responses.set()
         return web.Response(status=200)
 
-    app = web.Application()
+    app = web.Application(middlewares=[log_unhandled_error])
     app.router.add_get(callback_path, callback)
     app.router.add_post(WEBHOOK_PATH, webhook)
     return app
